@@ -1,5 +1,5 @@
 from camera import Camera
-from kinsus0825 import Warpdetection
+from curve import Warpdetection
 # import threading
 
 def iterate_detection_result_frame(device, abc):
