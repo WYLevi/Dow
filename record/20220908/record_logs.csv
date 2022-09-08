@@ -1,0 +1,5 @@
+date_time,result,view,curved_MEAS,record_path
+2022/09/08T12:04:05,NG,Cam1,7.64mm,record\20220908\record_logs.csv
+2022/09/08T12:04:05,NG,Cam2,8.0mm,record\20220908\record_logs.csv
+2022/09/08T12:04:16,NG,Cam2,6.92mm,record\20220908\record_logs.csv
+2022/09/08T12:04:19,NG,Cam1,7.46mm,record\20220908\record_logs.csv

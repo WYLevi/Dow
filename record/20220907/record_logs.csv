@@ -1,0 +1,11 @@
+date_time,result,view,curved_MEAS,record_path
+2022/09/07T16:14:22,NG,Cam1,8.54mm,record\20220907\record_logs.csv
+2022/09/07T16:14:30,NG,Cam1,7.82mm,record\20220907\record_logs.csv
+2022/09/07T16:14:39,OK,Cam2,1.7mm,record\20220907\record_logs.csv
+2022/09/07T16:16:37,NG,Cam1,8.54mm,record\20220907\record_logs.csv
+2022/09/07T16:16:45,NG,Cam1,7.82mm,record\20220907\record_logs.csv
+2022/09/07T16:16:59,OK,Cam2,1.7mm,record\20220907\record_logs.csv
+2022/09/07T16:17:52,NG,Cam1,8.54mm,record\20220907\record_logs.csv
+2022/09/07T16:18:00,NG,Cam1,7.82mm,record\20220907\record_logs.csv
+2022/09/07T16:18:08,OK,Cam2,1.7mm,record\20220907\record_logs.csv
+2022/09/07T17:45:55,NG,Cam2,8.36mm,record\20220907\record_logs.csv
