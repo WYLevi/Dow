@@ -44,7 +44,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self.initUI()
         
-        date = QDateTime.currentDateTime().toString("yyyyMMdd")
+        #date = QDateTime.currentDateTime().toString("yyyyMMdd")
         
         ''' 連接webcam並輸出視訊 '''
         self.cap = camDict
@@ -79,10 +79,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer=QTimer()
         self.timer.timeout.connect(self.showtime)
         self.timer.start(1000)
-        
-#        self.timer_log = QTimer()
-#        self.timer_log.timeout.connect(self.update_csv)
-#        self.timer_log.start(5000)
         
         ''' 監控log變化 ''' 
         self.file_changed_wacher = QtCore.QFileSystemWatcher()
@@ -174,31 +170,28 @@ class MainWindow(QtWidgets.QMainWindow):
 
 #%%
 ########## Setting子視窗控制 ##########        
-height = 0
+height = 1
 class SubWindow(QWidget):
-
     def __init__(self, parnet=None, camViewFlag=None):
         super(SubWindow, self).__init__(parnet)
         self.initUI()
         self.title = "參數設定"
         self.camViewFlag = [False, False]  
         self.cam_No = 0      # cfg檔裡threshold的編號(對應webcam)
-        self.line_height = 0 # 綠線的高度
+        #self.line_height = 1 # 綠線的高度
         self.frame_width = 0
         self.frame_height = 0
                 
+        self.tabui.height_Edit.setText(str(height))
         self.tabui.height_Edit.textChanged.connect(self.text_change)
         self.tabui.Cam1_btn.clicked.connect(self.showCam1) 
         self.tabui.Cam2_btn.clicked.connect(self.showCam2) 
         
-#        '''新圖層-畫線 '''
+        '''新圖層-畫線 '''
         self.label_show = MouseTracker(self.tabui.label, self.camViewFlag)
+        self.label_show.tab_signal[str].connect(self.cfg_load) # 接收滑鼠點擊訊號
         
         
-        self.tab_thread = MouseTracker()
-        self.tab_thread.tab_signal.connect(self.cfg_load)
-        
-
     def initUI(self):
         self.tabui = Ui_Form_Setting()
         self.tabui.setupUi(self)
@@ -207,10 +200,7 @@ class SubWindow(QWidget):
         self.frame_height = self.tabui.label.size().height()    
         
     def cfg_load(self, str1):        
-        
-        print(str1)
         config.read(r'./cfg/Service.cfg')
-        
         if self.camViewFlag[0]:    # Cam1
             self.cam_No = 0
         elif self.camViewFlag[1]:  # Cam2
@@ -220,11 +210,8 @@ class SubWindow(QWidget):
         self.tabui.tableWidget.setItem(0, 0, QTableWidgetItem(config.get('Threshold'+ str(self.cam_No), options_num[0])))
         for i in range(1 , len(options_num)):
                 self.tabui.tableWidget_2.setItem(0, i-1, QTableWidgetItem(config.get('Threshold'+ str(self.cam_No), options_num[i])))
-                
-        #self.tableWidget_2.update()
     
     def showCam1(self):
-#        self.cfg_load()
         self.tabui.label.setStyleSheet('')
         self.tabui.label.setPixmap(window.ui.label_Cam1.pixmap())
         self.tabui.label.setScaledContents(True)
@@ -235,10 +222,8 @@ class SubWindow(QWidget):
         if self.sender().objectName() == "Cam1View":
             self.camViewFlag[0] = True
             self.camViewFlag[1] = False
-            
-        
+                  
     def showCam2(self): 
-#        self.cfg_load()  
         self.tabui.label.setStyleSheet('')
         self.tabui.label.setPixmap(window.ui.label_Cam2.pixmap())
         self.tabui.label.setScaledContents(True)
@@ -255,7 +240,7 @@ class SubWindow(QWidget):
         if self.tabui.height_Edit.toPlainText().isdigit():
             height = int(self.tabui.height_Edit.toPlainText())
         else:
-            height = 0
+            height = 1
             
     def resizeEvent(self, event):
         self.frame_width = self.tabui.label.size().width()
@@ -265,24 +250,23 @@ class SubWindow(QWidget):
         self.label_show.setGeometry(0, 0, self.frame_width, self.frame_height)
         self.tabui.label.setStyleSheet('border-width: 1px;border-style: solid;border-color: rgb(0, 0, 139);')
         self.label_show.show()
-
         
 ##########  滑鼠控制 ##########
 
 class MouseTracker(QLabel):       
-    tab_signal = pyqtSignal()
+    tab_signal = pyqtSignal(str)
     
     def __init__(self, parnet=None, camViewFlag=None):
         super(MouseTracker, self).__init__(parnet)
         self.pos_x = QPoint()
         self.pos_y = QPoint()
         self.camViewFlag = camViewFlag
-
         
     #按下鼠標
     def mousePressEvent(self, event):
         self.pos_x = event.pos().x()
         self.pos_y = event.pos().y()
+        self.tab_signal.emit('1') # 發送訊號給setting視窗        
         
     #释放鼠標
     def mouseReleaseEvent(self, event): 
@@ -299,10 +283,8 @@ class MouseTracker(QLabel):
             Srvcfg['Threshold1']['detecetHeight'] = str(height)
             with open(r'./cfg/Service.cfg', 'w') as f:
                 Srvcfg.write(f)
-                
-        self.tab_signal.emit(self.pos_y)        
+            
         self.update()       
-        
 
     #繪制事件
     def paintEvent(self, event): 
@@ -316,7 +298,6 @@ class MouseTracker(QLabel):
             painter.setPen(QPen(Qt.green, 1, Qt.SolidLine))
             painter.drawLine(int(self.pos_x), int(self.pos_y) - height, int(self.pos_x), 959)    
                      
-
 #%%            
 def pixmap_to_cv2img(image):
     ''' QPixmap 轉 OpenCV ''' 
@@ -327,7 +308,6 @@ def pixmap_to_cv2img(image):
     ptr.setsize(qimg.byteCount())
     result = np.array(ptr, dtype=np.uint8).reshape(temp_shape)
     result = result[..., :3]
-
     return result
 
 def cv2img_to_pixmap(image):
