@@ -191,6 +191,9 @@ class SubWindow(QWidget):
         self.label_show = MouseTracker(self.tabui.label, self.camViewFlag)
         self.label_show.tab_signal[str].connect(self.cfg_load) # 接收滑鼠點擊訊號
         
+        ''' 表格被滑鼠雙擊666 '''
+#        self.tabui.tableWidget_2.itemDoubleClicked.connect(self.tab_item_change)
+        self.tabui.tableWidget_2.itemChanged.connect(self.tab_item_change)
         
     def initUI(self):
         self.tabui = Ui_Form_Setting()
@@ -199,12 +202,21 @@ class SubWindow(QWidget):
         self.frame_width = self.tabui.label.size().width()
         self.frame_height = self.tabui.label.size().height()    
         
+    def tab_item_change(self, item):
+        ''' 表格內容被修改時 '''
+
+        config.read(r'./cfg/Service.cfg')
+        
+        options_num = config.options('Threshold' + str(self.cam_No))
+
+        config.set('Threshold' + str(self.cam_No), options_num[item.row()+1], self.tabui.tableWidget_2.item(item.row(), 0).text())
+
+        with open(r'./cfg/Service.cfg', 'w') as f:
+            config.write(f)
+        f.close()
+            
     def cfg_load(self, str1):        
         config.read(r'./cfg/Service.cfg')
-        if self.camViewFlag[0]:    # Cam1
-            self.cam_No = 0
-        elif self.camViewFlag[1]:  # Cam2
-            self.cam_No = 1
         options_num = config.options('Threshold' + str(self.cam_No))
             
         self.tabui.tableWidget.setItem(0, 0, QTableWidgetItem(config.get('Threshold'+ str(self.cam_No), options_num[0])))
@@ -222,6 +234,7 @@ class SubWindow(QWidget):
         if self.sender().objectName() == "Cam1View":
             self.camViewFlag[0] = True
             self.camViewFlag[1] = False
+            self.cam_No = 0
                   
     def showCam2(self): 
         self.tabui.label.setStyleSheet('')
@@ -234,6 +247,7 @@ class SubWindow(QWidget):
         if self.sender().objectName() == "Cam2View":
             self.camViewFlag[0] = False
             self.camViewFlag[1] = True
+            self.cam_No = 1
             
     def text_change(self):
         global height

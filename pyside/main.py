@@ -5,11 +5,16 @@ Created on Mon Sep 12 10:18:11 2022
 @author: WYLee
 """
 
-
-from PySide2 import  QtWidgets
-
+import os
 import sys
+import PySide2
+from PySide2 import QtWidgets
 from Main_UI import Ui_MainWindow
+
+dirname = os.path.dirname(PySide2.__file__)
+plugin_path = os.path.join(dirname, 'plugins', 'platforms')
+os.environ['QT_QPA_PLATFORM_PLUGIN_PATH' ] = plugin_path
+
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
@@ -18,17 +23,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
 
 
-if __name__ == '__main__': 
-#    app = QtCore.QCoreApplication.instance()
-#    camDict = {}
-#    for i in range(2):
-#        camInstance = Camera(device = i)
-#        camInstance.run()
-#        camDict[i] = camInstance
-#    if app is None:
-#        app = QtWidgets.QApplication(sys.argv)
-    app = QtWidgets.QApplication(sys.argv)
-    window = MainWindow()
-    window.show()  
-     
-    sys.exit(app.exec_())
+app = QtWidgets.QApplication(sys.argv)
+window = MainWindow()
+window.show()
+app.exec_()
