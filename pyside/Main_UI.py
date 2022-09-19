@@ -78,6 +78,8 @@ class Ui_MainWindow(object):
         self.Cam1_title = QLabel(self.centralwidget)
         self.Cam1_title.setObjectName(u"Cam1_title")
         self.Cam1_title.setMinimumSize(QSize(300, 14))
+        self.Cam1_title.setStyleSheet('color: Blue')
+        self.Cam1_title.setFont(QFont("Roman times", 12, QFont.Bold))
         self.verticalLayout.addWidget(self.Cam1_title)
         
         self.horizontalLayout = QHBoxLayout()
@@ -117,6 +119,8 @@ class Ui_MainWindow(object):
         self.Cam2_title = QLabel(self.centralwidget)
         self.Cam2_title.setObjectName(u"Cam2_title")
         self.Cam2_title.setMinimumSize(QSize(300, 14))
+        self.Cam2_title.setStyleSheet('color: Blue')
+        self.Cam2_title.setFont(QFont("Roman times", 12, QFont.Bold))
         self.verticalLayout.addWidget(self.Cam2_title)
 
         self.horizontalLayout_2 = QHBoxLayout()

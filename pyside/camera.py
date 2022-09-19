@@ -9,7 +9,7 @@ class Camera:
     def __init__(self, fps=30, device = 0):
         self.isrunning = True
         self.status = False
-        self.cap = cv2.VideoCapture(r'.\0906demo.mp4')
+        self.cap = cv2.VideoCapture('./0906demo.mp4')
         self.cap.set(6, cv2.VideoWriter_fourcc(	'M', 'J', 'P', 'G'	))
         #self.cap.set(5, 30)
         self.cap.set(3, 1920)
@@ -38,16 +38,24 @@ class Camera:
         # logger.debug("Stopping thread")
         self.isrunning = False
 
-    def get_frame(self):
+    def get_frame(self ,stream = True):
         ### Camera有讀到影像
-        if self.status:
-            # return cv2.resize(self.frame, (1280, 720))
-            result = self.cam.createBackground(self.device, self.frame)
-            return self.status, result
-        ### Camera讀不到影像，讀預設not_found影像
+        if stream:
+            if self.status:
+                # return cv2.resize(self.frame, (1280, 720))
+                result = self.cam.createBackground(self.device, self.frame)
+                return self.status, result
+            ### Camera讀不到影像，讀預設not_found影像
+            else:
+                print("no image...")
+                return self.status, None
+                # with open("config/not_found.jpeg","rb") as f:
+                #     img = f.read()
+                # return img
         else:
-#            print("no image...")
-            return self.status, None
-            # with open("config/not_found.jpeg","rb") as f:
-            #     img = f.read()
-            # return img
+            if self.status:
+                return self.status, self.frame
+            ### Camera讀不到影像，讀預設not_found影像
+            else:
+                print("no image...")
+                return self.status, None

@@ -50,23 +50,6 @@ def save_log(dateText, camID, resultStatus, curvedMEAS):
 
 class Warpdetection():  
     def __init__(self, device):
-        Srvcfg = configparser.ConfigParser()
-        Srvcfg.read('./cfg/Service.cfg')
-        self.substrateLength = eval(Srvcfg.get('Threshold{}'.format(device), 'substrateLength'))
-        self.lowThreshold = eval(Srvcfg.get('Threshold{}'.format(device), 'lowThreshold'))
-        self.highThreshold = eval(Srvcfg.get('Threshold{}'.format(device), 'highThreshold'))
-        self.lowerRed0 = np.array(eval(Srvcfg.get('Threshold{}'.format(device), 'lower_red_0')))
-        self.upperRed0 = np.array(eval(Srvcfg.get('Threshold{}'.format(device), 'upper_red_0')))
-        self.lowerRed1 = np.array(eval(Srvcfg.get('Threshold{}'.format(device), 'lower_red_1')))
-        self.upperRed1 = np.array(eval(Srvcfg.get('Threshold{}'.format(device), 'upper_red_1')))
-        self.pixeltomm = eval(Srvcfg.get('Threshold{}'.format(device), 'pixeltomm'))
-        self.detecetPixel = eval(Srvcfg.get('Threshold{}'.format(device), 'detecetPixel'))
-        detecetHeight = eval(Srvcfg.get('Threshold{}'.format(device), 'detecetHeight'))
-        self.NGThreshold = eval(Srvcfg.get('Threshold{}'.format(device), 'NGThreshold'))
-        self.detecetHeight = int(detecetHeight / self.pixeltomm)
-        self.resultStatus = "init"
-        self.buffer = 1
-
         # 參數初始化
         self.X = []
         self.Y = []
@@ -76,6 +59,26 @@ class Warpdetection():
         self.xCount = 1
         self.result = False
         self.detecet = False
+        self.device = device
+        self.reload_config()
+
+    def reload_config(self):
+        Srvcfg = configparser.ConfigParser()
+        Srvcfg.read('./cfg/Service.cfg')
+        self.substrateLength = eval(Srvcfg.get('Threshold{}'.format(self.device), 'substrateLength'))
+        self.lowThreshold = eval(Srvcfg.get('Threshold{}'.format(self.device), 'lowThreshold'))
+        self.highThreshold = eval(Srvcfg.get('Threshold{}'.format(self.device), 'highThreshold'))
+        self.lowerRed0 = np.array(eval(Srvcfg.get('Threshold{}'.format(self.device), 'lower_red_0')))
+        self.upperRed0 = np.array(eval(Srvcfg.get('Threshold{}'.format(self.device), 'upper_red_0')))
+        self.lowerRed1 = np.array(eval(Srvcfg.get('Threshold{}'.format(self.device), 'lower_red_1')))
+        self.upperRed1 = np.array(eval(Srvcfg.get('Threshold{}'.format(self.device), 'upper_red_1')))
+        self.pixeltomm = eval(Srvcfg.get('Threshold{}'.format(self.device), 'pixeltomm'))
+        self.detecetPixel = eval(Srvcfg.get('Threshold{}'.format(self.device), 'detecetPixel'))
+        detecetHeight = eval(Srvcfg.get('Threshold{}'.format(self.device), 'detecetHeight'))
+        self.NGThreshold = eval(Srvcfg.get('Threshold{}'.format(self.device), 'NGThreshold'))
+        self.buffer = eval(Srvcfg.get('Threshold{}'.format(self.device), 'buffer'))
+        self.detecetHeight = int(detecetHeight / self.pixeltomm)
+        self.resultStatus = "init"
 
     def moving_average(self):
         if len(self.X) < 10 :
@@ -187,7 +190,6 @@ class Warpdetection():
                     #記錄該基板最高點影像
                     if ((round(abs((self.maxPixel[0]- self.detecetHeight) * self.pixeltomm) - self.buffer ,2)) > self.highest):
                         self.highest = (round(abs((self.maxPixel[0]- self.detecetHeight) * self.pixeltomm) - self.buffer ,2))
-                        print(device, 'ng', self.highest)
                         cv2.imwrite('Highest_{}.jpg'.format(device), showFrame)    # 基板最高翹曲影像
                         self.highest_frame = showFrame
                         self.resultStatus = "NG"
@@ -199,7 +201,6 @@ class Warpdetection():
                     #記錄該基板最高點影像
                     if ((round(abs((self.maxPixel[0]- self.detecetHeight) * self.pixeltomm) - self.buffer ,2)) > self.highest):
                         self.highest = (round(abs((self.maxPixel[0]- self.detecetHeight) * self.pixeltomm) - self.buffer ,2))
-                        print(device, 'ok', self.highest)
                         cv2.imwrite('Highest_{}.jpg'.format(device), showFrame)    # 基板最高翹曲影像
                         self.highest_frame = showFrame
                         self.resultStatus = "OK"
@@ -213,11 +214,11 @@ class Warpdetection():
                         try:
                             #輸出翹曲曲線
                             if len(self.YAverage)!=0:
-                                self.YAverage[:11] = self.Y[:11]
-                                self.YAverage[-6:] = self.Y[-6:]
-                                plt.plot(self.X[2:-4], self.YAverage[2:-4], "r-", linewidth = 1.0)
+                                #self.YAverage[:11] = self.Y[:11]
+                                #self.YAverage[-6:] = self.Y[-6:]
+                                plt.plot(self.X[:-1], self.Y[:-1], "r-", linewidth = 1.0)
                                 plt.hlines(0, 0, self.xCount, color = "green")
-                                plt.hlines((self.NGThreshold+2) / self.pixeltomm, 0, self.xCount, color = "blue", linestyles = '--')
+                                plt.hlines((self.NGThreshold + self.buffer) / self.pixeltomm, 0, self.xCount, color = "blue", linestyles = '--')
                                 plt.ylim(-10, 100)
                                 # plt.ylim(1 - y, 1080 - y)
                                 plt.gca().invert_xaxis()

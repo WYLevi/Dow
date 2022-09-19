@@ -102,8 +102,8 @@ class Ui_Form_Setting(object):
 #        __qtablewidgetitem8 = QTableWidgetItem()
 #        self.tableWidget_2.setHorizontalHeaderItem(1, __qtablewidgetitem8)
         
-        if (self.tableWidget_2.rowCount() < 10):
-            self.tableWidget_2.setRowCount(10)
+        if (self.tableWidget_2.rowCount() < 11):
+            self.tableWidget_2.setRowCount(11)
         __qtablewidgetitem9 = QTableWidgetItem()
         self.tableWidget_2.setVerticalHeaderItem(0, __qtablewidgetitem9)
         __qtablewidgetitem10 = QTableWidgetItem()
@@ -124,6 +124,8 @@ class Ui_Form_Setting(object):
         self.tableWidget_2.setVerticalHeaderItem(8, __qtablewidgetitem17)
         __qtablewidgetitem18 = QTableWidgetItem()
         self.tableWidget_2.setVerticalHeaderItem(9, __qtablewidgetitem18)
+        __qtablewidgetitem19 = QTableWidgetItem()
+        self.tableWidget_2.setVerticalHeaderItem(10, __qtablewidgetitem19)
         self.tableWidget_2.setObjectName(u"tableWidget_2")
         self.tableWidget_2.setMinimumSize(QSize(0, 0))
         self.tableWidget_2.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
@@ -201,6 +203,8 @@ class Ui_Form_Setting(object):
         ___qtablewidgetitem17.setText(QCoreApplication.translate("Form", u"detecet height", None));
         ___qtablewidgetitem18 = self.tableWidget_2.verticalHeaderItem(9)
         ___qtablewidgetitem18.setText(QCoreApplication.translate("Form", u"NG Threshold", None));
+        ___qtablewidgetitem19 = self.tableWidget_2.verticalHeaderItem(10)
+        ___qtablewidgetitem19.setText(QCoreApplication.translate("Form", u"buffer", None));
         
         self.label.setText(QCoreApplication.translate("Form", u"TextLabel", None))
     # retranslateUi
