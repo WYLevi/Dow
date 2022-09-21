@@ -8,6 +8,7 @@ Created on Mon Sep 12 10:18:11 2022
 import os
 import sys
 import cv2
+import time
 import threading
 import configparser
 
@@ -43,6 +44,8 @@ config = configparser.ConfigParser()
 config['location'] = {}
 #%%
 
+
+fDir = r'./record'
 class MainWindow(QMainWindow):
 
     def __init__(self, camDict):
@@ -82,18 +85,17 @@ class MainWindow(QMainWindow):
         self.timer_curve2.start(1000)
 #        
         ''' 監控log變化 ''' 
-        self.file_changed_wacher = QtCore.QFileSystemWatcher()
-        self.wacher_set_directory(r'.\record')
+        self.filewatcher = MyFileSystemWatcher()
+        self.filewatcher.addPath(fDir)
+        self.filewatcher.fileChanged.connect(self.slot_fileChanged_update)
+        self.path = ""
+        self.inf = ""
                  
     def initUI(self):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        
-#        pixmap = QPixmap ('./auo.png')
-#        self.ui.label_logo.setPixmap(pixmap)
-#        self.ui.label_logo.setScaledContents(True)
 
-        self.printf(QDateTime.currentDateTime().toString("yyyy-MM-dd hh:mm:ss") + "：Process Start")            
+#        self.printf(QDateTime.currentDateTime().toString("yyyy-MM-dd hh:mm:ss") + "：Process Start")            
         
     def showtime(self):
         ''' 顯示系統時間 '''
@@ -145,34 +147,33 @@ class MainWindow(QMainWindow):
         self.ui.label_chart2.setPixmap(QPixmap(r'.\Substrate curve_1.png')) 
         self.ui.label_chart2.setScaledContents(True)
         
-    ########## 監聽事件處理 ##########        
-    def wacher_set_directory(self, directory=None):
-        self.file_changed_wacher.addPath(directory)
-        self.file_changed_wacher.directoryChanged.connect(self.handle_directory_changed)
-        
-    def handle_directory_changed(self, path):
-        ''' 監聽資料夾事件 ''' 
-        date = QDateTime.currentDateTime().toString("yyyyMMdd")
-        csvPath = os.path.join(os.getcwd(), 'record', date, 'record_logs.csv')
-        self.file_changed_wacher.removePath(path) # 移除舊的監聽路徑
-        self.file_changed_wacher.addPath(csvPath)
-        self.file_changed_wacher.fileChanged.connect(self.slot_file_changed)
-        
-    def slot_file_changed(self, path):
-        ''' 監聽檔案事件 '''
-        if path in self.file_changed_wacher.files():
+    ########## 監聽事件處理 ##########      
+    def slot_load_show_text(self):
+        ftxt = os.path.basename(self.path)
+        if os.path.exists(self.path):
+            time_modified = os.stat(self.path).st_mtime
+            time_modified_str=time.strftime( '%Y-%m-%d %H:%M:%S',time.localtime(time_modified) )   
+            
             try:
                 self.ui.textBrowser.clear()
-                df = pd.read_csv(path).tail(5)
+                df = pd.read_csv(self.path).tail(5)
                 new_log = (df['date_time'] +" ["+ df['view'] +"] Status："+ df['result'] + ", " + df['curved_MEAS']).astype(str)
                 new_line = new_log.str.cat(sep="\n")
-
                 self.printf(new_line)
+                self.ui.textBrowser.append('*** last modified at {0} ***'.format(time_modified_str))
             except:
                 return
+        else:
+            self.ui.textBrowser.setText('** {0} does not exist **'.format(ftxt))
+
+    def slot_fileChanged_update(self,pathModified,infoModify):
+        self.path = pathModified
+        self.inf = infoModify
+        self.slot_load_show_text()      
+            
     ########## ########## ##########      
     def printf(self, mes):
-        """ 顯示log資訊 """
+        ''' 顯示log資訊 '''
         self.ui.textBrowser.append(mes)
         self.cursor = self.ui.textBrowser.textCursor()
         self.ui.textBrowser.moveCursor(self.cursor.End)
@@ -193,11 +194,11 @@ class SubWindow(QWidget):
         self.tabui.Cam1_btn.clicked.connect(self.showCam1) 
         self.tabui.Cam2_btn.clicked.connect(self.showCam2) 
         
-        '''新圖層-畫線 '''
+        """ 新圖層-畫線 """
         self.label_show = MouseTracker(self.tabui.label, self.camViewFlag)
         self.label_show.tab_signal[str].connect(self.cfg_load) # 接收滑鼠點擊訊號
         
-        ''' 表格被滑鼠雙擊666 '''
+        """ 表格被滑鼠雙擊666 """
         self.tabui.tableWidget_2.itemChanged.connect(self.tab_item_change)
         
     def initUI(self):
@@ -219,11 +220,7 @@ class SubWindow(QWidget):
         if item.row() == 8:
             h = int(self.tabui.tableWidget_2.item(item.row(), 0).text())
             height = h  
-            self.tabui.label.setStyleSheet('')
-        print(height) 
-        
-        self.label_show.painter.drawLine(int(0), int(50), 0, int(100)) 
-        
+                    
         ''' 表格內容被修改時 '''
         config.read(r'./cfg/Service.cfg')
         options_num = config.options('Threshold' + str(self.cam_No))
@@ -231,22 +228,24 @@ class SubWindow(QWidget):
         with open(r'./cfg/Service.cfg', 'w') as f:
             config.write(f)
         f.close()
-
         
-            
+        for i in range(2):
+            camDict[i].cam.reload_config()
+
     def cfg_load(self, str1):      
         ''' 讀取cfg檔資訊 '''
         config.read(r'./cfg/Service.cfg')
         options_num = config.options('Threshold' + str(self.cam_No))
         
+        # 將cfg顯示在table1
         self.tabui.tableWidget.setItem(0, 0, QTableWidgetItem(config.get('Threshold'+ str(self.cam_No), options_num[0])))
         
+        # 將cfg顯示在table2
         for i in range(1 , len(options_num)):
             self.tabui.tableWidget_2.setItem(0, (i-1), QTableWidgetItem(config.get('Threshold'+ str(self.cam_No), options_num[i])))
 
-    
-    def showCam1(self):
-        
+    def showCam1(self):   
+        ''' 開啟Cam1資訊 '''
         self.tabui.Cam2_btn.setStyleSheet("")
         self.tabui.Cam1_btn.setStyleSheet("background-color: yellow")
         
@@ -263,8 +262,10 @@ class SubWindow(QWidget):
             self.camViewFlag[0] = True
             self.camViewFlag[1] = False
             self.cam_No = 0
+            self.cfg_load('1')
                   
     def showCam2(self): 
+        ''' 開啟Cam2資訊 '''
         self.tabui.Cam1_btn.setStyleSheet("")
         self.tabui.Cam2_btn.setStyleSheet("background-color: yellow")
         
@@ -281,8 +282,10 @@ class SubWindow(QWidget):
             self.camViewFlag[0] = False
             self.camViewFlag[1] = True
             self.cam_No = 1
+            self.cfg_load('1')
             
     def resizeEvent(self, event):
+        ''' 視窗調整大小，畫布自動調整 '''
         self.frame_width = self.tabui.label.size().width()
         self.frame_height = self.tabui.label.size().height()
 
@@ -291,8 +294,6 @@ class SubWindow(QWidget):
         self.tabui.label.setStyleSheet('border-width: 1px;border-style: solid;border-color: rgb(0, 0, 139);')
         self.label_show.show()
         
-#%%
-
 ##########  滑鼠控制 ##########
 class MouseTracker(QLabel):  
     global height   
@@ -312,13 +313,7 @@ class MouseTracker(QLabel):
         self.pos_x = event.pos().x()
         self.pos_y = event.pos().y()
         self.update()
-#        ###WY
-#        Srvcfg = configparser.ConfigParser()
-#        Srvcfg.read(r'./cfg/Service.cfg')
-#        if self.camViewFlag[0]:
-#            self.pt_height = int(Srvcfg.get('Threshold0', 'detecetheight'))
-#        elif self.camViewFlag[1]:
-#            self.pt_height = int(Srvcfg.get('Threshold1', 'detecetheight'))
+        
     #释放鼠標
     def mouseReleaseEvent(self, event):      
         reply = QMessageBox.question(self, '系統訊息','確定選擇該位置', QMessageBox.Ok, QMessageBox.Cancel)
@@ -332,6 +327,7 @@ class MouseTracker(QLabel):
                 self.pixeltomm = eval(Srvcfg.get('Threshold0', 'pixeltomm'))
                 with open(r'./cfg/Service.cfg', 'w') as f:
                     Srvcfg.write(f)
+                f.close()
 
             elif self.camViewFlag[1]:   # Cam2:
                 self.pt_height = int(Srvcfg.get('Threshold1', 'detecetheight'))
@@ -339,7 +335,8 @@ class MouseTracker(QLabel):
                 self.pixeltomm = eval(Srvcfg.get('Threshold1', 'pixeltomm'))  
                 with open(r'./cfg/Service.cfg', 'w') as f:
                     Srvcfg.write(f) 
-
+                f.close()
+                
             for i in range(2):
                 camDict[i].cam.reload_config()
             event.accept()                    
@@ -349,26 +346,72 @@ class MouseTracker(QLabel):
             pass
         self.update()       
 
-    #繪制事件
     def paintEvent(self, event): 
         Srvcfg = configparser.ConfigParser()
         Srvcfg.read(r'./cfg/Service.cfg')                 
         super().paintEvent(event)
-        self.painter = QPainter(self)
+        painter = QPainter(self)
         if (self.pos_x) and (self.pos_y):
-            self.painter.setPen(QPen(QColor(255,20,147), 1, Qt.SolidLine))
-            self.painter.drawLine(int(self.pos_x), int(self.pos_y), 0, int(self.pos_y)) 
-            self.painter.setPen(QPen(Qt.green, 1, Qt.SolidLine))
-            self.painter.drawLine(int(self.pos_x), int(self.pos_y) - int(self.pt_height / self.pixeltomm / 1080 * self.size().height()), int(self.pos_x), 1080)    
+            painter.setPen(QPen(QColor(255,20,147), 1, Qt.SolidLine))
+            painter.drawLine(int(self.pos_x), int(self.pos_y), 0, int(self.pos_y)) 
+            painter.setPen(QPen(Qt.green, 1, Qt.SolidLine))
+            painter.drawLine(int(self.pos_x), int(self.pos_y) - int(self.pt_height / self.pixeltomm / 1080 * self.size().height()), int(self.pos_x), 1080)    
+      
+########## 監聽csv檔變化  ##########
+def timestr(t):
+    return time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(t))
+
+class MyFileSystemWatcher(QObject):
+    fileChanged = Signal(str, str) # path, information 
+    
+    def __init__(self):
+        super().__init__()
+        self.pathList = []
+        self.pathFlag = [0]
+        self.pathNum = 0
+        self.timer = QTimer()
+        self.timerInterval = 0.1 
+        self.timer.start(self.timerInterval*1000)
+        self.timer.timeout.connect(self.slot_timeout_checkChange)
         
+    def addPath(self,path):
+        self.pathList.append(path)
+        self.pathNum = self.pathNum + 1
+        if os.path.exists(path):
+            self.pathFlag.append(1)
+        else:
+            self.pathFlag.append(0)
+        
+    def slot_timeout_checkChange(self):
+        localtime = time.strftime("%Y%m%d", time.localtime())   
+        for i in range(self.pathNum):
+            path = self.pathList[i] + '/'+ localtime +'/record_logs.csv'
+            timeCurrent = time.time()
+            if self.pathFlag[i]: 
+                if os.path.exists(path): 
+                    timeModify = os.stat(path).st_mtime; 
+                    if timeCurrent - timeModify < self.timerInterval :
+                        self.fileChanged.emit( path, 'modified at '+timestr(timeModify) )
+                        break 
+                else:
+                    self.fileChanged.emit(path,'removed at ' + timestr(timeCurrent) )
+                    self.pathFlag[i] = 0
+                    break 
+            else:
+                if os.path.exists(path): 
+                    timeModify = os.stat(path).st_mtime;
+                    self.fileChanged.emit(path, 'created at ' + timestr(timeModify) )
+                    self.pathFlag[i] = 1
+                    break    
+                
+                
 if __name__ == '__main__': 
     camDict = {}
     for i in range(2):
         camInstance = Camera(device = i)
         camInstance.run()
         camDict[i] = camInstance
-        
-    
+           
     app = QApplication.instance()
 
     if app is None:
@@ -376,4 +419,5 @@ if __name__ == '__main__':
     window = MainWindow(camDict = camDict)
     window.show()
     
-    sys.exit(app.exec_())
+    #sys.exit(app.exec_())
+    app.exec_()
