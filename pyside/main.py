@@ -20,10 +20,10 @@ import PySide2
 from PySide2 import QtCore, QtGui, QtWidgets
 
 from PySide2.QtCore import *
-from PySide2.QtCore import Qt, QRect, QPoint, QObject, QThread, QTimer, QDateTime, Signal, Slot, QCoreApplication
+from PySide2.QtCore import Qt, QRect, QPoint, QObject, QThread, QTimer, QDateTime, Signal, Slot, QCoreApplication, QEvent
 
 from PySide2.QtGui import *
-from PySide2.QtGui import QPixmap, QImage, QPainter, QPen, QGuiApplication, QFont, QColor
+from PySide2.QtGui import QPixmap, QImage, QPainter, QPen, QGuiApplication, QFont, QColor, QMouseEvent
 
 from PySide2.QtWidgets import *
 from PySide2.QtWidgets import QMainWindow, QApplication, QWidget, QLabel, QTableWidgetItem, QMessageBox
@@ -94,6 +94,11 @@ class MainWindow(QMainWindow):
     def initUI(self):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+
+        pixmap = QPixmap ('./auo.png')
+        pixmap = pixmap.scaled(60, 40)
+        self.ui.label_logo.setPixmap(pixmap)
+        self.ui.label_logo.setScaledContents(True)
 
 #        self.printf(QDateTime.currentDateTime().toString("yyyy-MM-dd hh:mm:ss") + "：Process Start")            
         
@@ -206,7 +211,8 @@ class SubWindow(QWidget):
         self.tabui.setupUi(self)
         
         self.frame_width = self.tabui.label.size().width()
-        self.frame_height = self.tabui.label.size().height()    
+        self.frame_height = self.tabui.label.size().height()
+ 
 
     def webcam_display(self, frame):
         ''' 處理OpenCV圖片轉QPixmap '''
@@ -217,6 +223,7 @@ class SubWindow(QWidget):
 
     def tab_item_change(self, item):
         global height
+
         if item.row() == 8:
             h = int(self.tabui.tableWidget_2.item(item.row(), 0).text())
             height = h  
@@ -231,6 +238,7 @@ class SubWindow(QWidget):
         
         for i in range(2):
             camDict[i].cam.reload_config()
+  
 
     def cfg_load(self, str1):      
         ''' 讀取cfg檔資訊 '''
@@ -249,13 +257,14 @@ class SubWindow(QWidget):
         self.tabui.Cam2_btn.setStyleSheet("")
         self.tabui.Cam1_btn.setStyleSheet("background-color: yellow")
         
-        self.tabui.label.setStyleSheet('')
+        self.tabui.label.setPixmap(QPixmap(""))
         _ ,frame = camDict[0].get_frame(stream = False)
         frame = self.webcam_display(frame)
         self.tabui.label.setPixmap(frame)
         self.tabui.label.setScaledContents(True)
+        
+        self.label_show.clear()
         self.label_show.setGeometry(0, 0, self.frame_width, self.frame_height)
-        self.tabui.label.setStyleSheet('border-width: 1px;border-style: solid;border-color: rgb(0, 0, 139);')
         self.label_show.show()
         
         if self.sender().objectName() == "Cam1View":
@@ -269,13 +278,14 @@ class SubWindow(QWidget):
         self.tabui.Cam1_btn.setStyleSheet("")
         self.tabui.Cam2_btn.setStyleSheet("background-color: yellow")
         
-        self.tabui.label.setStyleSheet('')
+        self.tabui.label.setPixmap(QPixmap(""))
         _ ,frame = camDict[1].get_frame(stream = False)
         frame = self.webcam_display(frame)
         self.tabui.label.setPixmap(frame)
         self.tabui.label.setScaledContents(True)
+        
+        self.label_show.clear()
         self.label_show.setGeometry(0, 0, self.frame_width, self.frame_height)
-        self.tabui.label.setStyleSheet('border-width: 1px;border-style: solid;border-color: rgb(0, 0, 139);')
         self.label_show.show()
         
         if self.sender().objectName() == "Cam2View":
@@ -289,75 +299,117 @@ class SubWindow(QWidget):
         self.frame_width = self.tabui.label.size().width()
         self.frame_height = self.tabui.label.size().height()
 
-        self.tabui.label.setStyleSheet('')
+        self.label_show.clear()
         self.label_show.setGeometry(0, 0, self.frame_width, self.frame_height)
-        self.tabui.label.setStyleSheet('border-width: 1px;border-style: solid;border-color: rgb(0, 0, 139);')
         self.label_show.show()
+    
+
         
 ##########  滑鼠控制 ##########
 class MouseTracker(QLabel):  
     global height   
     
     tab_signal = Signal(str)
-    def __init__(self, parnet=None, camViewFlag=None):
+    def __init__(self, parnet=None, camViewFlag=None):        
         super(MouseTracker, self).__init__(parnet)
         self.pos_x = QPoint()
         self.pos_y = QPoint()
         self.camViewFlag = camViewFlag
+        self.flag = False
         
         self.pt_height = height
         self.pixeltomm = 1 
         
-    #按下鼠標
+        self.cam1_pot = [0,0]
+        self.cam2_pot = [0,0]
+            
     def mousePressEvent(self, event):
+        self.flag = True
         self.pos_x = event.pos().x()
         self.pos_y = event.pos().y()
-        self.update()
         
-    #释放鼠標
-    def mouseReleaseEvent(self, event):      
+        if self.camViewFlag[0]:
+            self.cam1_pot = [self.pos_x, self.pos_y]
+        elif self.camViewFlag[1]:
+            self.cam2_pot = [self.pos_x, self.pos_y]
+        self.update()   
+        
+    def mouseReleaseEvent(self, event):     
         reply = QMessageBox.question(self, '系統訊息','確定選擇該位置', QMessageBox.Ok, QMessageBox.Cancel)
         if reply == QMessageBox.Ok:
-            Srvcfg = configparser.ConfigParser()
-            Srvcfg.read(r'./cfg/Service.cfg')
-    
+            config.read(r'./cfg/Service.cfg')
             if self.camViewFlag[0]:   # Cam1
-                self.pt_height = int(Srvcfg.get('Threshold0', 'detecetheight'))
-                Srvcfg['Threshold0']['detecetpixel'] = str([int(self.pos_x * 1920/self.size().width()), int(self.pos_y * 1080/self.size().height())])
-                self.pixeltomm = eval(Srvcfg.get('Threshold0', 'pixeltomm'))
+                self.pt_height = int(config.get('Threshold0', 'detecetheight'))
+                config['Threshold0']['detecetpixel'] = str([int(self.pos_x * 1920/self.size().width()), int(self.pos_y * 1080/self.size().height())])
+                self.pixeltomm = eval(config.get('Threshold0', 'pixeltomm'))
                 with open(r'./cfg/Service.cfg', 'w') as f:
-                    Srvcfg.write(f)
+                    config.write(f)
                 f.close()
 
             elif self.camViewFlag[1]:   # Cam2:
-                self.pt_height = int(Srvcfg.get('Threshold1', 'detecetheight'))
-                Srvcfg['Threshold1']['detecetpixel'] = str([int(self.pos_x * 1920/self.size().width()), int(self.pos_y * 1080/self.size().height())])
-                self.pixeltomm = eval(Srvcfg.get('Threshold1', 'pixeltomm'))  
+                self.pt_height = int(config.get('Threshold1', 'detecetheight'))
+                config['Threshold1']['detecetpixel'] = str([int(self.pos_x * 1920/self.size().width()), int(self.pos_y * 1080/self.size().height())])
+                self.pixeltomm = eval(config.get('Threshold1', 'pixeltomm'))  
                 with open(r'./cfg/Service.cfg', 'w') as f:
-                    Srvcfg.write(f) 
+                    config.write(f) 
                 f.close()
                 
             for i in range(2):
                 camDict[i].cam.reload_config()
+                
             event.accept()                    
             self.tab_signal.emit('1') # 發送訊號給setting視窗   
         else:
             event.ignore()
             pass
-        self.update()       
-
+        
+        self.update()
+         
     def paintEvent(self, event): 
-        Srvcfg = configparser.ConfigParser()
-        Srvcfg.read(r'./cfg/Service.cfg')                 
         super().paintEvent(event)
         painter = QPainter(self)
-        if (self.pos_x) and (self.pos_y):
+        
+        x_pot = 0
+        y_pot = 0
+        
+        # webcam按鈕被按下且滑鼠點擊位置
+        if True in  self.camViewFlag and self.flag:
+            if self.camViewFlag[0]:
+                x_pot =  self.cam1_pot[0]
+                y_pot =  self.cam1_pot[1]
+            elif self.camViewFlag[1]:   
+                x_pot =  self.cam2_pot[0]
+                y_pot =  self.cam2_pot[1]                
             painter.setPen(QPen(QColor(255,20,147), 1, Qt.SolidLine))
-            painter.drawLine(int(self.pos_x), int(self.pos_y), 0, int(self.pos_y)) 
+            painter.drawLine(x_pot, y_pot, 0, y_pot) 
             painter.setPen(QPen(Qt.green, 1, Qt.SolidLine))
-            painter.drawLine(int(self.pos_x), int(self.pos_y) - int(self.pt_height / self.pixeltomm / 1080 * self.size().height()), int(self.pos_x), 1080)    
-      
-########## 監聽csv檔變化  ##########
+            painter.drawLine(x_pot, y_pot - int(self.pt_height / self.pixeltomm / 1080 * self.size().height()), x_pot, self.size().height())
+            self.flag = False    
+
+        else:       
+            config.read(r'./cfg/Service.cfg')
+            if True in  self.camViewFlag:
+                if self.camViewFlag[0]:
+                    init_hetght = int(config.get('Threshold0', 'detecetheight'))
+                    init_pixeltomm = float(config.get('Threshold0', 'pixeltomm'))
+                    x_pot =  int(config.get('Threshold0', 'detecetpixel').strip('[]').split(',')[0]) * self.size().width() / 1920 
+                    y_pot =  int(config.get('Threshold0', 'detecetpixel').strip('[]').split(',')[1]) * self.size().height() / 1080
+                elif self.camViewFlag[1]:
+                    init_hetght = int(config.get('Threshold1', 'detecetheight'))
+                    init_pixeltomm = float(config.get('Threshold1', 'pixeltomm'))
+                    x_pot =  int(config.get('Threshold1', 'detecetpixel').strip('[]').split(',')[0]) * self.size().width() / 1920
+                    y_pot =  int(config.get('Threshold1', 'detecetpixel').strip('[]').split(',')[1]) * self.size().height() / 1080
+                painter.setPen(QPen(QColor(255,20,147), 1, Qt.SolidLine))
+                painter.drawLine(x_pot, y_pot, 0, y_pot) 
+                painter.setPen(QPen(Qt.green, 1, Qt.SolidLine))
+                painter.drawLine(x_pot, y_pot - int(init_hetght / init_pixeltomm / 1080 * self.size().height()), x_pot, self.size().height())    
+                
+        if height != self.pt_height:
+            self.pt_height = height
+            painter.setPen(QPen(Qt.green, 1, Qt.SolidLine))
+            painter.drawLine(x_pot, y_pot - int(init_hetght / init_pixeltomm / 1080 * self.size().height()), x_pot, self.size().height())  
+         
+########## 監聽csv檔變化 ##########
 def timestr(t):
     return time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(t))
 
@@ -402,8 +454,7 @@ class MyFileSystemWatcher(QObject):
                     timeModify = os.stat(path).st_mtime;
                     self.fileChanged.emit(path, 'created at ' + timestr(timeModify) )
                     self.pathFlag[i] = 1
-                    break    
-                
+                    break                   
                 
 if __name__ == '__main__': 
     camDict = {}
