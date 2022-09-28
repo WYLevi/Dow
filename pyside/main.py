@@ -332,9 +332,10 @@ class MouseTracker(QLabel):
             self.cam1_pot = [self.pos_x, self.pos_y]
         elif self.camViewFlag[1]:
             self.cam2_pot = [self.pos_x, self.pos_y]
-        self.update()   
+          
         
-    def mouseReleaseEvent(self, event):     
+    def mouseReleaseEvent(self, event): 
+        self.flag = True
         reply = QMessageBox.question(self, '系統訊息','確定選擇該位置', QMessageBox.Ok, QMessageBox.Cancel)
         if reply == QMessageBox.Ok:
             config.read(r'./cfg/Service.cfg')
@@ -385,7 +386,7 @@ class MouseTracker(QLabel):
             painter.setPen(QPen(Qt.green, 1, Qt.SolidLine))
             painter.drawLine(x_pot, y_pot - int(self.pt_height / self.pixeltomm / 1080 * self.size().height()), x_pot, self.size().height())
             self.flag = False    
-
+            
         else:       
             config.read(r'./cfg/Service.cfg')
             if True in  self.camViewFlag:
@@ -399,15 +400,16 @@ class MouseTracker(QLabel):
                     init_pixeltomm = float(config.get('Threshold1', 'pixeltomm'))
                     x_pot =  int(config.get('Threshold1', 'detecetpixel').strip('[]').split(',')[0]) * self.size().width() / 1920
                     y_pot =  int(config.get('Threshold1', 'detecetpixel').strip('[]').split(',')[1]) * self.size().height() / 1080
+                
                 painter.setPen(QPen(QColor(255,20,147), 1, Qt.SolidLine))
                 painter.drawLine(x_pot, y_pot, 0, y_pot) 
                 painter.setPen(QPen(Qt.green, 1, Qt.SolidLine))
                 painter.drawLine(x_pot, y_pot - int(init_hetght / init_pixeltomm / 1080 * self.size().height()), x_pot, self.size().height())    
                 
-        if height != self.pt_height:
-            self.pt_height = height
-            painter.setPen(QPen(Qt.green, 1, Qt.SolidLine))
-            painter.drawLine(x_pot, y_pot - int(init_hetght / init_pixeltomm / 1080 * self.size().height()), x_pot, self.size().height())  
+                if height != init_hetght:
+                    painter.setPen(QPen(Qt.green, 1, Qt.SolidLine))
+                    painter.drawLine(x_pot, y_pot - int(init_hetght  / init_pixeltomm / 1080 * self.size().height()), x_pot, self.size().height())  
+                    self.update()
          
 ########## 監聽csv檔變化 ##########
 def timestr(t):
