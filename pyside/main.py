@@ -335,7 +335,7 @@ class MouseTracker(QLabel):
           
         
     def mouseReleaseEvent(self, event): 
-        self.flag = True
+#        self.flag = True
         reply = QMessageBox.question(self, '系統訊息','確定選擇該位置', QMessageBox.Ok, QMessageBox.Cancel)
         if reply == QMessageBox.Ok:
             config.read(r'./cfg/Service.cfg')
@@ -343,18 +343,16 @@ class MouseTracker(QLabel):
                 self.pt_height = int(config.get('Threshold0', 'detecetheight'))
                 config['Threshold0']['detecetpixel'] = str([int(self.pos_x * 1920/self.size().width()), int(self.pos_y * 1080/self.size().height())])
                 self.pixeltomm = eval(config.get('Threshold0', 'pixeltomm'))
-                with open(r'./cfg/Service.cfg', 'w') as f:
-                    config.write(f)
-                f.close()
 
             elif self.camViewFlag[1]:   # Cam2:
                 self.pt_height = int(config.get('Threshold1', 'detecetheight'))
                 config['Threshold1']['detecetpixel'] = str([int(self.pos_x * 1920/self.size().width()), int(self.pos_y * 1080/self.size().height())])
                 self.pixeltomm = eval(config.get('Threshold1', 'pixeltomm'))  
-                with open(r'./cfg/Service.cfg', 'w') as f:
-                    config.write(f) 
+
+            with open(r'./cfg/Service.cfg', 'w') as f:
+                config.write(f) 
                 f.close()
-                
+              
             for i in range(2):
                 camDict[i].cam.reload_config()
                 
@@ -364,8 +362,10 @@ class MouseTracker(QLabel):
             event.ignore()
             pass
         
-        self.update()
-         
+        
+        self.flag = False 
+#        self.update()
+        
     def paintEvent(self, event): 
         super().paintEvent(event)
         painter = QPainter(self)
@@ -385,7 +385,8 @@ class MouseTracker(QLabel):
             painter.drawLine(x_pot, y_pot, 0, y_pot) 
             painter.setPen(QPen(Qt.green, 1, Qt.SolidLine))
             painter.drawLine(x_pot, y_pot - int(self.pt_height / self.pixeltomm / 1080 * self.size().height()), x_pot, self.size().height())
-            self.flag = False    
+#            self.flag = False  
+            self.update()
             
         else:       
             config.read(r'./cfg/Service.cfg')
@@ -405,11 +406,12 @@ class MouseTracker(QLabel):
                 painter.drawLine(x_pot, y_pot, 0, y_pot) 
                 painter.setPen(QPen(Qt.green, 1, Qt.SolidLine))
                 painter.drawLine(x_pot, y_pot - int(init_hetght / init_pixeltomm / 1080 * self.size().height()), x_pot, self.size().height())    
-                
-                if height != init_hetght:
+
+                if height != self.pt_height:
                     painter.setPen(QPen(Qt.green, 1, Qt.SolidLine))
                     painter.drawLine(x_pot, y_pot - int(init_hetght  / init_pixeltomm / 1080 * self.size().height()), x_pot, self.size().height())  
-                    self.update()
+                    self.pt_height = height
+            self.update()
          
 ########## 監聽csv檔變化 ##########
 def timestr(t):
