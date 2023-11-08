@@ -1,0 +1,11 @@
+QLabel {
+    color: white;
+    font-size: 100px;
+    font-weight: bold;
+    border-radius: 10px;
+    qproperty-alignment: 'AlignCenter';
+    padding: 8px;
+    border: 2px solid yellow;
+    background-color: #fbc02d;
+
+}

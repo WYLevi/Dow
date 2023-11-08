@@ -1,0 +1,6 @@
+QHeaderView-section {
+    background-color: black;
+    color: white;             
+    padding: 4px;
+    border: 1px solid #167fac;
+}

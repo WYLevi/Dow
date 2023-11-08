@@ -1,0 +1,13 @@
+QLabel#timeLabel {
+    background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, stop:0 #FFE6B3, stop:1 #FFD280);
+    border-style: solid;
+    border-width: 3px;
+    border-radius: 10px;
+    border-color: #FFD280;
+    font: bold 20px;
+    color: black;
+    padding: 6px;
+    min-width: 100px;
+    min-height: 40px;
+    text-align: center;
+}
