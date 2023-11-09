@@ -11,14 +11,15 @@ from PySide2.QtGui import QImage, QPixmap, QFont, QGuiApplication,QIcon,QColor,Q
 import os 
 import sys
 import cv2
+import csv
 import random
 import logging
 import datetime
 import pandas as pd
-from openpyxl import Workbook, load_workbook
+
 from datetime import datetime
 from utils.Logger import Logger
-from openpyxl.styles import Font
+
 from configparser import ConfigParser
 from utils.SaveScreenShot import SaveScreenshot
 from utils.Custommessagebox import CustomMessageBox
@@ -45,7 +46,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(QWidget(self))
         self.ui = Ui_MainWindow()     
         self.ui.setupUi(self)
-        self.resizeToScreen()
+        self.resize_to_screen()
         self.callibrationWindow = QtWidgets.QMainWindow()
         self.callibrationUI = Callibration()
         self.callibrationUI.setupUi(self.callibrationWindow)
@@ -53,10 +54,10 @@ class MainWindow(QMainWindow):
         # self.setHeaderColor()
         self.installEventFilter(self)
         self.ui.tableWidget.setItemDelegate(HyperlinkItemDelegate(self))
-        self.ui.tableWidget.cellClicked.connect(self.onCellClicked)
+        self.ui.tableWidget.cellClicked.connect(self.on_cellclicked)
 
     def setupControl(self):  
-        #設定設備字
+        ###設定設備字
         self.cfg = ConfigParser()
         self.cfg.read("setup.cfg",encoding='utf-8')
         self.equipmentNumber =str("#")+self.cfg["setup"]["equipmentnumber"]
@@ -64,8 +65,8 @@ class MainWindow(QMainWindow):
         dataSection = self.cfg['data']
         
         comboboxdata = {}
-        for key, value_str in dataSection.items():
-            valueList = [int(num) for num in value_str.split(",")]
+        for key, valueStr in dataSection.items():
+            valueList = [int(num) for num in valueStr.split(",")]
             comboboxdata[key] = valueList        
         self.data1Uppercase = {key.upper(): value for key, value in comboboxdata.items()}
         
@@ -80,7 +81,6 @@ class MainWindow(QMainWindow):
         # font1.setPointSize(20)  # 您可以根据需要调整这个值
         self.ui.equipmentLabel.setFont(font1)
 
-        
         logger.info(f"使用{self.equipmentNumber}號機台")        
         self.font = QFont("Times New Roman",20)
 
@@ -93,19 +93,19 @@ class MainWindow(QMainWindow):
         self.currenDate = self.now.date()
         self.formattedDate = self.currenDate.strftime("%Y%m%d")
         
-        self.outputfileName = self.outputfolder + self.formattedDate+"output.xlsx"
+        self.outputfileName = self.outputfolder + self.formattedDate+"/output.csv"
+        self.diameterFolder = os.path.join("logs",self.formattedDate,"diameterPic")
+        self.thicknessFolder = os.path.join("logs",self.formattedDate,"thicknessPic")
+        
+        os.makedirs(self.diameterFolder, exist_ok=True)
+        os.makedirs(self.thicknessFolder, exist_ok=True)
 
         if os.path.isfile(self.outputfileName):
-            logger.info("輸出CSV位置為" + str(self.outputfileName))
+            logger.info("輸出 CSV 位置為 " + str(self.outputfileName))
         else:
-            logger.critical("找不到CSV檔，創建一個新的輸出文件")
-            wb = Workbook()
-            ws = wb.active
-            wb.save(self.outputfileName)
+            with open(self.outputfileName, 'w', newline='', encoding='utf-8-sig') as csvfile:
+                csvWriter = csv.writer(csvfile)
 
-        
-        self.previous_log_time = QDateTime.currentDateTime()
-        
         logopath = "LOGO\LOGO_small.png"
         pixmap = QPixmap(logopath)
         self.ui.logoLabel.setPixmap(pixmap)
@@ -141,17 +141,17 @@ class MainWindow(QMainWindow):
 
         ###按鈕設定
         self.ui.callibrationButton.clicked.connect(self.openCallibration)
-        self.ui.diameterButton.clicked.connect(self.diameterImage)
-        self.ui.thicknessButton.clicked.connect(self.thicknessImage)
-        self.ui.realtimeButton.clicked.connect(self.realtimeMode)       
-        self.ui.csv_button.clicked.connect(self.saveTocsv) 
-        self.callibrationUI.pushButton.clicked.connect(self.fullScreen)
+        self.ui.diameterButton.clicked.connect(self.diameter_image)
+        self.ui.thicknessButton.clicked.connect(self.thickness_image)
+        self.ui.realtimeButton.clicked.connect(self.realtime_mode)       
+    
+        self.callibrationUI.pushButton.clicked.connect(self.full_screen)
         
         ##測試用
         self.addrowtimer = QTimer()
         self.csvtimer = QTimer()
-        self.addrowtimer.timeout.connect(self.addRow)
-        self.csvtimer.timeout.connect(self.saveTocsv)
+        self.addrowtimer.timeout.connect(self.add_row)
+        self.csvtimer.timeout.connect(self.save_to_csv)
         self.csvtimer.start(8000)
         self.addrowtimer.start(5000)
         
@@ -169,7 +169,7 @@ class MainWindow(QMainWindow):
         # 设置表格列数和表头标签
         self.ui.tableWidget.setColumnCount(6)
         self.ui.tableWidget.setHorizontalHeaderLabels(self.headers)
-
+        self.headcnt=0
         # 获取表头对象
         header = self.ui.tableWidget.horizontalHeader()
         
@@ -182,36 +182,36 @@ class MainWindow(QMainWindow):
         self.ui.tableWidget.horizontalHeader().setVisible(True)
 
         # 设置表头字体
-        header_font = QFont()
-        header_font.setPointSize(20)  # 将字体大小设置为 50
+        headerFont = QFont()
+        headerFont.setPointSize(20)  # 将字体大小设置为 50
 
         # 遍历表头并设置每个表头项的字体
         for i in range(len(self.headers)):
-            header_item = QTableWidgetItem(self.headers[i])
-            header_item.setFont(header_font)
-            self.ui.tableWidget.setHorizontalHeaderItem(i, header_item)
+            headerItem = QTableWidgetItem(self.headers[i])
+            headerItem.setFont(headerFont)
+            self.ui.tableWidget.setHorizontalHeaderItem(i, headerItem)
         self.ui.tableWidget.verticalHeader().setDefaultSectionSize(40)
 
         
         #改header 顏色
-        self.header_background_color = "lightblue"
-        self.ui.tableWidget.horizontalHeader().setStyleSheet(f"QHeaderView::section {{ background-color:{self.header_background_color}; }}")
+        self.headerBackgroundColor = "lightblue"
+        self.ui.tableWidget.horizontalHeader().setStyleSheet(f"QHeaderView::section {{ background-color:{self.headerBackgroundColor}; }}")
         
         #初始播放狀態
         self.firstCam = True
         self.timerVideoActive = True
-        self.setupCamera()
+        self.setup_camera()
         self.capture = cv2.VideoCapture(self.videoPath)
         self.timerVideo = QTimer()
-        self.timerVideo.timeout.connect(self.displayVideoStream)
+        self.timerVideo.timeout.connect(self.display_video_stream)
         self.timerVideo.start(30)        
 
-        #初始化顯示正常
-        ###TODO 增加條件才能初始正常
+        # 初始化顯示正常
+        ### TODO 增加條件才能初始正常
 
-        self.initStatus()
+        self.init_status()
         
-        # 初始化管型 QComboBox
+        ### 初始化管型 QComboBox
         self.ui.pipelineTypeComboBox.clear()
         for pipe_type in self.data1Uppercase.keys():
             self.ui.pipelineTypeComboBox.addItem(pipe_type)
@@ -220,9 +220,9 @@ class MainWindow(QMainWindow):
         self.updatingSizes = False
         self.ui.pipelineTypeComboBox.currentIndexChanged[str].connect(self.update_sizes)
         self.update_sizes(self.ui.pipelineTypeComboBox.currentText())   
-        self.ui.pipelineTypeComboBox.currentIndexChanged.connect(self.showMessage)
-        self.ui.colorTypeComboBox.currentIndexChanged.connect(self.showMessageWindow2)
-        self.ui.pipelineDiameterComboBox.currentIndexChanged.connect(self.showMessageWindow3)
+        self.ui.pipelineTypeComboBox.currentIndexChanged.connect(self.show_message)
+        self.ui.colorTypeComboBox.currentIndexChanged.connect(self.show_messagewindow2)
+        self.ui.pipelineDiameterComboBox.currentIndexChanged.connect(self.show_message_window3)
 
         self.colotTpye=None
         self.pipelineType=None
@@ -233,14 +233,13 @@ class MainWindow(QMainWindow):
         self.callibrationUI.label.keyPressEvent = self.label_key_press_event
 
         # 檢查校正模式是否全螢幕狀態
-        self.is_fullscreen = False
+        self.isFullscreen = False
         self.fullScreenWindow = None  
 
         #設定messgeboxwindow
         self.messageboxfont = QFont("Arial", 20)
 
-    def resizeToScreen(self):
-        
+    def resize_to_screen(self):
         screen_geometry = QGuiApplication.primaryScreen().geometry()
         width = screen_geometry.width()
         height = screen_geometry.height()
@@ -261,14 +260,19 @@ class MainWindow(QMainWindow):
     def openCallibration(self):
         self.callibrationWindow.show()
     #顯示直徑大小
-    def diameterImage(self):
-        latest_image_path = None
+    def diameter_image(self):
+        latestImagePath = None
         
         diameterImage = self.diameterFolder
-        files = [os.path.join(diameterImage, f) for f in os.listdir(diameterImage) if os.path.isfile(os.path.join(diameterImage, f))]
-        files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
-        if files:
-            latest_image_path = files[0]
+        filePathList = list()
+        for folders in os.listdir(diameterImage):
+            subFolder = os.path.join(diameterImage, folders)
+            for fileName in os.listdir(subFolder):
+                filePathList.append(os.path.join(subFolder,fileName))
+        
+        filePathList.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+        if filePathList:
+            latestImagePath = filePathList[0]
         else:
             msg = CustomMessageBox()
             msg.setIcon(CustomMessageBox.Information)
@@ -282,36 +286,43 @@ class MainWindow(QMainWindow):
             msg.setText(text)
 
             # 使用 QFontMetrics 計算文本尺寸，以確保對話框足夠大
-            font_metrics = QFontMetrics(font)
-            text_width = font_metrics.horizontalAdvance(text)
-            text_height = font_metrics.height()
+            fontMetrics = QFontMetrics(font)
+            textWidth = fontMetrics.horizontalAdvance(text)
+            textHeight = fontMetrics.height()
 
             # 根據文本大小調整對話框大小
-            msg.setFixedSize(text_width + 50, text_height + 100)
+            msg.setFixedSize(textWidth + 50, textHeight + 100)
 
             msg.exec_()
-        if latest_image_path:
+        if latestImagePath:
             if self.timerVideoActive:
                 self.timerVideoActive = False
                 self.timerVideo.stop()
                 QApplication.processEvents()
             self.ui.videoLabel.clear()
             self.qpixmap = QPixmap()
-            self.qpixmap.load(latest_image_path)
+            self.qpixmap.load(latestImagePath)
             self.ui.videoLabel.setPixmap(self.qpixmap)
             
     #顯示厚度大小
-    def thicknessImage(self):
-        latest_image_path = None
+    def thickness_image(self):
+        latestImagePath = None
         if self.timerVideoActive:
             self.timerVideoActive = False
             self.timerVideo.stop()
             QApplication.processEvents()
         thicknessImage = self.thicknessFolder
-        files = [os.path.join(thicknessImage, f) for f in os.listdir(thicknessImage) if os.path.isfile(os.path.join(thicknessImage, f))]
-        files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
-        if files:
-            latest_image_path = files[0]
+
+        filePathList = list()
+        for folders in os.listdir(thicknessImage):
+            subFolder = os.path.join(thicknessImage, folders)
+            for fileName in os.listdir(subFolder):
+                filePathList.append(os.path.join(subFolder,fileName))
+
+
+        filePathList.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+        if filePathList:
+            latestImagePath = filePathList[0]
         else:
             msg = CustomMessageBox()
             msg.setIcon(CustomMessageBox.Information)
@@ -325,50 +336,50 @@ class MainWindow(QMainWindow):
             msg.setText(text)
 
             # 使用 QFontMetrics 計算文本尺寸，以確保對話框足夠大
-            font_metrics = QFontMetrics(font)
-            text_width = font_metrics.horizontalAdvance(text)
-            text_height = font_metrics.height()
+            fontMetrics = QFontMetrics(font)
+            textWidth = fontMetrics.horizontalAdvance(text)
+            textHeight = fontMetrics.height()
 
             # 根據文本大小調整對話框大小
-            msg.setFixedSize(text_width + 50, text_height + 100)
+            msg.setFixedSize(textWidth + 50, textHeight + 100)
 
             msg.exec_()
-        if latest_image_path:
+        if latestImagePath:
             if self.timerVideoActive:
                 self.timerVideoActive = False
                 self.timerVideo.stop()
                 QApplication.processEvents()
             self.ui.videoLabel.clear()
             self.qpixmap = QPixmap()
-            self.qpixmap.load(latest_image_path)
+            self.qpixmap.load(latestImagePath)
             self.ui.videoLabel.setPixmap(self.qpixmap)
     
     #顯示攝影機        
-    def realtimeMode (self):
-        self.setupCamera()
+    def realtime_mode (self):
+        self.setup_camera()
         if not self.timerVideoActive: 
             self.timerVideo.start(30)
             self.timerVideoActive = True
         
-    def setupCamera(self):
+    def setup_camera(self):
         self.capture = cv2.VideoCapture(self.videoPath)
         self.timerVideo = QTimer()
-        self.timerVideo.timeout.connect(self.displayVideoStream)
+        self.timerVideo.timeout.connect(self.display_video_stream)
         self.timerVideo.start(30)
         
-    def displayVideoStream(self):
+    def display_video_stream(self):
         ret, self.frame = self.capture.read()
         if self.firstCam & ret :
             logger.info("讀入攝影機")
             self.firstCam = False
             self.ui.realtimeButton.setChecked(True)
-            self.greenClick()
+            self.green_click()
         try:
             if not ret:
                 raise Exception("攝影機無畫面")
          
         except Exception as e:
-            self.yellowClick()
+            self.yellow_click()
             self.firstCam = True
             logger.error(e)    
             self.timerVideo.stop()
@@ -382,7 +393,7 @@ class MainWindow(QMainWindow):
             QImage.Format_RGB888,
         )
         self.ui.videoLabel.setPixmap(QPixmap.fromImage(self.image))
-        if  self.callibrationWindow.isActiveWindow() or self.is_fullscreen:
+        if  self.callibrationWindow.isActiveWindow() or self.isFullscreen:
             self.callibrationUI.label.setPixmap(QPixmap.fromImage(self.image))
             self.callibrationUI.label.setScaledContents(True)
         
@@ -390,42 +401,42 @@ class MainWindow(QMainWindow):
     def showtime(self):
         time = QDateTime.currentDateTime()
         timedisplay = time.toString("yyyy-MM-dd hh:mm:ss dddd")
-        english_locale = QLocale(QLocale.English)
-        timedisplay = english_locale.toString(time, "yyyy-MM-dd hh:mm:ss ddd.")
+        englishLocale = QLocale(QLocale.English)
+        timedisplay = englishLocale.toString(time, "yyyy-MM-dd hh:mm:ss ddd.")
         self.ui.timeLabel.setFont(self.font)
         self.ui.timeLabel.setAlignment(Qt.AlignCenter)
         self.ui.timeLabel.setText(timedisplay)
         
 ###顏色設定
-    def initStatus(self):
+    def init_status(self):
         with open(self.stylesheets[3],"r") as file:
             stylesheet = file.read()
             self.ui.statusLabel.setText("系統初始化中")
             self.ui.statusLabel.setStyleSheet(stylesheet)
             self.ui.statusLabel.update()
                                         
-    def redClick(self):
+    def red_click(self):
         with open(self.stylesheets[0], "r") as file:
             stylesheet = file.read()
             self.ui.statusLabel.setText("管材NG")
             self.ui.statusLabel.setStyleSheet(stylesheet)
             self.ui.statusLabel.update()
 
-    def yellowClick(self):
+    def yellow_click(self):
         with open(self.stylesheets[1], "r") as file:
             stylesheet = file.read()
             self.ui.statusLabel.setText("系統異常")
             self.ui.statusLabel.setStyleSheet(stylesheet)
             self.ui.statusLabel.update()
             
-    def greenClick(self):
+    def green_click(self):
         with open(self.stylesheets[2], "r") as file:
             stylesheet = file.read()
             self.ui.statusLabel.setText("系統正常")
             self.ui.statusLabel.setStyleSheet(stylesheet)
             self.ui.statusLabel.update()
 ####################
-    def showMessage(self, index):
+    def show_message(self, index):
         messageBox = CustomMessageBox(self)
         messageBox.setWindowTitle("確認視窗")
         
@@ -438,25 +449,25 @@ class MainWindow(QMainWindow):
                                                         self.ui.pipelineDiameterComboBox.currentText())
         messageBox.setText(text)
         # 使用 QFontMetrics 計算文本尺寸，以確保對話框足夠大
-        font_metrics = QFontMetrics(font)
-        text_width = font_metrics.horizontalAdvance(text)
-        text_height = font_metrics.height()
+        fontMetrics = QFontMetrics(font)
+        textWidth = fontMetrics.horizontalAdvance(text)
+        textHeight = fontMetrics.height()
 
         # 根據文本大小調整對話框大小
-        messageBox.setFixedSize(text_width + 10, text_height + 10)       
+        messageBox.setFixedSize(textWidth + 10, textHeight + 10)       
 
-        confirm_button = messageBox.addButton("確認", CustomMessageBox.AcceptRole)
-        cancel_button = messageBox.addButton("取消", CustomMessageBox.RejectRole)
+        confirmButton = messageBox.addButton("確認", CustomMessageBox.AcceptRole)
+        cancelButton = messageBox.addButton("取消", CustomMessageBox.RejectRole)
         messageBox.exec_()
-        if messageBox.clickedButton() == cancel_button:
+        if messageBox.clickedButton() == cancelButton:
             if index == 1:  # colorTypeComboBox
-                self.ui.colorTypeComboBox.currentIndexChanged.disconnect(self.showMessageWindow2)
+                self.ui.colorTypeComboBox.currentIndexChanged.disconnect(self.show_messagewindow2)
                 self.ui.colorTypeComboBox.setCurrentIndex(self.comboboxPreviousIndex2)
-                self.ui.colorTypeComboBox.currentIndexChanged.connect(self.showMessageWindow2)
+                self.ui.colorTypeComboBox.currentIndexChanged.connect(self.show_messagewindow2)
             elif index == 3:  # pipelineDiameterComboBox
-                self.ui.pipelineDiameterComboBox.currentIndexChanged.disconnect(self.showMessageWindow3)
+                self.ui.pipelineDiameterComboBox.currentIndexChanged.disconnect(self.show_message_window3)
                 self.ui.pipelineDiameterComboBox.setCurrentIndex(self.comboboxPreviousIndex3)
-                self.ui.pipelineDiameterComboBox.currentIndexChanged.connect(self.showMessageWindow3)
+                self.ui.pipelineDiameterComboBox.currentIndexChanged.connect(self.show_message_window3)
         else:
             if index == 1:  # colorTypeComboBox
                 self.comboboxPreviousIndex2 = self.ui.colorTypeComboBox.currentIndex()
@@ -470,22 +481,22 @@ class MainWindow(QMainWindow):
                                                                     self.ui.pipelineTypeComboBox.currentText(),
                                                                     self.ui.pipelineDiameterComboBox.currentText()))
 
-    def showMessageWindow2(self, index):
+    def show_messagewindow2(self, index):
         if index > -1 and not self.updatingSizes:
-            QTimer.singleShot(0, lambda: self.showMessage(1))
+            QTimer.singleShot(0, lambda: self.show_message(1))
 
-    def showMessageWindow3(self, index):
+    def show_message_window3(self, index):
         if index > -1 and not self.updatingSizes:
-            QTimer.singleShot(0, lambda: self.showMessage(3))      
+            QTimer.singleShot(0, lambda: self.show_message(3))      
 
-    def fullScreen(self):
-        if not self.is_fullscreen:
-            self.original_label_geometry = self.callibrationUI.label.geometry()
+    def full_screen(self):
+        if not self.isFullscreen:
+            self.originalLabelGeometry = self.callibrationUI.label.geometry()
             # 將 label 從其父視窗中移除
             self.callibrationUI.label.setParent(None)
             self.callibrationUI.label.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
             self.callibrationUI.label.showFullScreen()
-            self.is_fullscreen = True
+            self.isFullscreen = True
             messageBoxScreen = CustomMessageBox(self.callibrationUI.label)
             messageBoxScreen.setWindowTitle("系統提示")
 
@@ -497,12 +508,12 @@ class MainWindow(QMainWindow):
             messageBoxScreen.setText(text)
 
             # 使用 QFontMetrics 計算文本尺寸，以確保對話框足夠大
-            font_metrics = QFontMetrics(font)
-            text_width = font_metrics.horizontalAdvance(text)
-            text_height = font_metrics.height()
+            fontMetrics = QFontMetrics(font)
+            textWidth = fontMetrics.horizontalAdvance(text)
+            textHeight = fontMetrics.height()
 
             # 根據文本大小調整對話框大小
-            messageBoxScreen.setFixedSize(text_width + 50, text_height + 100)
+            messageBoxScreen.setFixedSize(textWidth + 50, textHeight + 100)
 
             messageBoxScreen.setIcon(CustomMessageBox.Information)
             messageBoxScreen.setStandardButtons(CustomMessageBox.Ok)
@@ -514,32 +525,26 @@ class MainWindow(QMainWindow):
             self.callibrationUI.label.setWindowFlags(Qt.Widget)
             self.callibrationUI.label.showNormal()
             self.callibrationUI.label.setGeometry(QRect(20, 50, 1181, 761))
-            self.is_fullscreen = False
+            self.isFullscreen = False
         self.callibrationUI.label.show()  # 确保更新标签的窗口状态
 
 
     def label_key_press_event(self, event):
-        if event.key() == Qt.Key_Escape and self.is_fullscreen:
-            self.fullScreen()
+        if event.key() == Qt.Key_Escape and self.isFullscreen:
+            self.full_screen()
 
-    def addRow(self):
-        cell_font = QFont()
-        cell_font.setPointSize(15)
-        cell_font_time = QFont()
-        cell_font_time.setPointSize(13)
+    def add_row(self):
+        cellFont = QFont()
+        cellFont.setPointSize(15)
+        cellFontTime = QFont()
+        cellFontTime.setPointSize(13)
 
-
-
-        # current_row = self.ui.tableWidget.rowCount()
         currentRow = 0
         self.ui.tableWidget.insertRow(currentRow)
         
         now = datetime.now()
-       
         currenDate = now.date()
-        # print(currentYear,currenDate)
         self.formattedDate = currenDate.strftime("%Y%m%d")
-
         self.diameterFolder = os.path.join("logs",self.formattedDate,"diameterPic")
         self.thicknessFolder = os.path.join("logs",self.formattedDate,"thicknessPic")
         
@@ -551,7 +556,7 @@ class MainWindow(QMainWindow):
         date = QDateTime.currentDateTime().toString("MM/dd hh:mm:ss")
         dateItem = QTableWidgetItem(date)
         dateItem.setTextAlignment(Qt.AlignCenter)
-        dateItem.setFont(cell_font_time)
+        dateItem.setFont(cellFontTime)
 
 
         # 生產規格
@@ -561,37 +566,35 @@ class MainWindow(QMainWindow):
         
         
         specification = f"{self.color}-{self.model}-{self.size}"
-        
         specificationItem = QTableWidgetItem(specification)
         specificationItem.setTextAlignment(Qt.AlignCenter)
-        specificationItem.setFont(cell_font)
+        specificationItem.setFont(cellFont)
 
         # 厚度值(mm)
         thicknessValue = round(random.uniform(2, 3), 2)
         thicknessItem = QTableWidgetItem(str(thicknessValue))
         thicknessItem.setTextAlignment(Qt.AlignCenter)
-        thicknessItem.setFont(cell_font)
+        thicknessItem.setFont(cellFont)
  
         # 外徑值
         DiameterValue = round(random.uniform(75, 77), 2)
         outerDiameterItem = QTableWidgetItem(str(DiameterValue))
         outerDiameterItem.setTextAlignment(Qt.AlignCenter)
-        outerDiameterItem.setFont(cell_font)
+        outerDiameterItem.setFont(cellFont)
     
     
     
         #找公差
-        df = pd.read_excel(self.searchFile)
+        df = pd.read_csv(self.searchFile)
+        
+
         modelSizeStr = f"{self.model}-{self.size}"
         matchedRow = df.loc[df["規格"] == modelSizeStr]
-        
         thicknessTolerance = matchedRow["厚度公差"].values[0]
-        diameterTolerance = matchedRow["外徑公差"].values[0]        
-        
-        minThicknessValue = matchedRow["厚度"].values[0] - thicknessTolerance
+        diameterTolerance = matchedRow["外徑公差"].values[0]       
+         
         maxThicknessValue = matchedRow["厚度"].values[0] + thicknessTolerance
-
-        
+        minThicknessValue = matchedRow["厚度"].values[0] - thicknessTolerance
         
         maxDiameterValue =  matchedRow["外徑"].values[0] + diameterTolerance        
         minDiameterValue =  matchedRow["外徑"].values[0] - diameterTolerance
@@ -600,19 +603,20 @@ class MainWindow(QMainWindow):
             status1 = "OK"
         else :
             status1 = "NG"
+            self.red_click()
         status1Item = QTableWidgetItem(status1)
         status1Item.setTextAlignment(Qt.AlignCenter)
-        status1Item.setFont(cell_font)  
-        
+        status1Item.setFont(cellFont)  
+
         if  minDiameterValue  < DiameterValue  < maxDiameterValue:
             status2 = "OK"
-
         else :
             status2 = "NG"
+            self.red_click()
         status2Item = QTableWidgetItem(status2)
         status2Item.setTextAlignment(Qt.AlignCenter)
-        status2Item.setFont(cell_font)          
-        
+        status2Item.setFont(cellFont)          
+    
         items = [dateItem, specificationItem, thicknessItem, status1Item, outerDiameterItem, status2Item]
    
         if currentRow == 0:
@@ -640,7 +644,7 @@ class MainWindow(QMainWindow):
             os.makedirs(saveFolder,exist_ok=True)
             saveThicknessScreenshot = SaveScreenshot(screenshot, saveFolder, fileName)
             threadPool.start(saveThicknessScreenshot)
-            self.redClick()
+            self.red_click()
             logger.warning("厚度NG!!")
                 
         elif status1 == "OK":
@@ -648,7 +652,7 @@ class MainWindow(QMainWindow):
             os.makedirs(saveFolder,exist_ok=True)
             saveThicknessScreenshot = SaveScreenshot(screenshot, saveFolder, fileName)
             threadPool.start(saveThicknessScreenshot)            
-            self.greenClick()
+            self.green_click()
             
             logger.info("厚度正常")  
 
@@ -657,7 +661,7 @@ class MainWindow(QMainWindow):
             os.makedirs(saveFolder,exist_ok=True)
             saveDiameterScreenshot = SaveScreenshot(screenshot, saveFolder, fileName)
             threadPool.start(saveDiameterScreenshot)
-            self.redClick()
+            self.red_click()
              
             logger.warning("管徑NG!!")
 
@@ -667,37 +671,46 @@ class MainWindow(QMainWindow):
             os.makedirs(saveFolder,exist_ok=True)
             saveDiameterScreenshot = SaveScreenshot(screenshot, saveFolder, fileName)
             threadPool.start(saveDiameterScreenshot)
-            self.greenClick()
-           
+            self.green_click()
             logger.info("管徑正常")
-        
-      
-
         self.ui.tableWidget.setItemDelegateForRow(currentRow, HyperlinkItemDelegate(self))
-        # self.ui.tableWidget.scrollToBottom()
 
-
-        ##判定結果放到OK或NG
-        
         
 
-
-    def saveTocsv(self):
-        data = []
+    def save_to_csv(self):
+        data = list()
+        
+        now = datetime.now()
+        currenDate = now.date()
+        self.formattedDate = currenDate.strftime("%Y%m%d")        
+        
+        self.outputfileName = self.outputfolder + self.formattedDate+"/output.csv"
+        
+        
         for row in range(self.ui.tableWidget.rowCount()):
-            rowData = []
+            rowData = list()
             currentYear = datetime.now().year
             # Get the time from tableWidget's first column
             item = self.ui.tableWidget.item(row, 0)
+            #時間
             cellText = item.text()
             timeText = f'{currentYear} {cellText}'
             rowData.append(timeText)
-
+            #顏色、型號、尺寸
             for column in range(1, 2):
                 item = self.ui.tableWidget.item(row, column)
                 cellText = item.text()
                 parts = cellText.split("-")
                 color = parts[0]
+                
+                if parts[0]=="橘":
+                    color = "Orange"
+                elif parts[0]=="灰":
+                    color = "Gray"
+                elif parts[0]=="藍":
+                    color = "Blue"
+                elif parts[0]=="其他":
+                    color = "Others"
                 model = parts[1]
                 size  = parts[2]
                 rowData.append(color)
@@ -705,24 +718,30 @@ class MainWindow(QMainWindow):
                 rowData.append(size)
 
             #找公差
-            df = pd.read_excel(self.searchFile)
+            df = pd.read_csv(self.searchFile)
             modelSizeStr = f"{model}-{size}"
             matchedRow = df.loc[df["規格"] == modelSizeStr]
             
             if not matchedRow.empty:
                 thicknessTolerance = matchedRow["厚度公差"].values[0]
+                thicknessStandard =  matchedRow["厚度"].values[0]
+                
                 diameterTolerance = matchedRow["外徑公差"].values[0]
-
+                diameterStandard =  matchedRow["外徑"].values[0]
             else:
-                thicknessTolerance = "未找到對應公差"
-                diameterTolerance = "未找到對應公差"
+                logger.warning("未找到對應公差")
+
+            rowData.append(thicknessStandard)
             rowData.append(thicknessTolerance)
+        
+        
         
             for column in range(2, 4):
                 item = self.ui.tableWidget.item(row, column)
                 cellText = item.text()
                 rowData.append(cellText)
             
+            rowData.append(diameterStandard)
             rowData.append(diameterTolerance)
             
             # Start iterating from the first column instead of the second one
@@ -733,49 +752,46 @@ class MainWindow(QMainWindow):
             data.append(rowData)
 
 
-        headers = ["時間", "顏色", "型號", "尺寸", "厚度公差","厚度(mm)", "厚度判定", "外徑公差","外徑(mm)", "外徑判定"]
+        # headers = ["時間", "顏色", "型號", "尺寸", "厚度公差","厚度(mm)", "厚度判定", "外徑公差","外徑(mm)", "外徑判定"]
+        headers = ["時間", "顏色", "型號", "尺寸", "厚度標準值(mm)", "厚度公差(mm)", "厚度結果(mm)", "厚度判定", "外徑標準值(mm)", "外徑公差(mm)", "外徑結果(mm)",	"外徑判定"]
+
         df = pd.DataFrame(data, columns=headers)
-
-        existing_times =set()
         try:
-            wb = load_workbook(self.outputfileName)
-            ws = wb.active
-            add_header = False  # 不要添加标题行
-            for row in ws.iter_rows(min_row=2, min_col=1, max_col=1):  # 跳过标题行，从第二行开始
-                existing_times.add(row[0].value)            
-            
+            # Try to read the existing CSV file using the detected encoding
+            with open(self.outputfileName, 'r', encoding='utf-8-sig') as f:
+                reader = csv.reader(f)
+                existing_data = [row for row in reader]
+
+            # Check if header exists
+            addHeader = not bool(existing_data)
+
         except FileNotFoundError:
-            
-            wb = Workbook()
-            ws = wb.active
-            add_header = True  # 添加标题行
-        
-        ws = wb.active
+            existing_data = list()
+            addHeader = True  # Add header row
 
-        for r in dataframe_to_rows(df, index=False, header=add_header):
-            if r[0] not in existing_times:
-                ws.append(r)
-                
-                
-        for row in ws.iter_rows():
-            for cell in row:
-                if 'NG' in str(cell.value):
-                    cell.font = Font(color='FF0000')
-                elif 'OK' in str(cell.value):
-                    cell.font = Font(color='008000')
-        try:
-            wb.save(self.outputfileName)
-        except PermissionError as e:
-            logger.error(f"無法保存文件 '{self.outputfileName}'：{e}")
+        # Add new data to existing data
+        if addHeader:
+            newData = dataframe_to_rows(df, index=False, header=True)
+        else:
+            newData = dataframe_to_rows(df, index=False, header=False)
+
+        for r in newData:
+            if r[0] not in [row[0] for row in existing_data]:
+                existing_data.append(r)
+
+        # Write the merged data to the CSV file
+        with open(self.outputfileName, 'w', encoding='utf-8-sig', newline='') as f:
+            writer = csv.writer(f)
+            for row in existing_data:
+                writer.writerow(row)
 
         logger.info("寫入CSV")
+                
         
-        
-    def ExitButton(self):
+    def exit_button(self):
         QCoreApplication.instance().quit()
 
-
-    def onCellClicked(self, row, column):
+    def on_cellclicked(self, row, column):
         statusColumns = [3, 5]
         if column in statusColumns:
             
@@ -811,6 +827,7 @@ class MainWindow(QMainWindow):
                 text2 = f"找不到{filePath2}"
                 logger.warning(text)
                 logger.warning(text2)
+
 
 if __name__ == "__main__":
     QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)

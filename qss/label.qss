@@ -1,9 +1,0 @@
-QLabel {
-
-    font: Arial bold 40px;
-    color: black;
-    padding: 2px;
-    min-width: 50px;
-
-    text-align: center;
-}

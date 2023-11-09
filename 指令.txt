@@ -1,8 +1,0 @@
-pyside2-uic polo.ui -o UI.py
-
-pyside2-uic polo.ui > UI_0928.py
-
-ui->textedit->moveCursor(QTextCursor::End);
-
-
-pyside2-uic poloV2.ui > UI_1006.py
